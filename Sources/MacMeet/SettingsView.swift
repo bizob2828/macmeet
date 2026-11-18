@@ -1,0 +1,44 @@
+import SwiftUI
+
+struct SettingsView: View {
+  @ObservedObject private var app = AppController.shared
+
+  private var keepsRunning: Bool { app.closeBehavior == .keepRunning }
+
+  private var menuBarBinding: Binding<Bool> {
+    Binding(
+      get: { app.effectiveKeepInMenuBar },
+      set: { app.keepInMenuBar = $0 }
+    )
+  }
+
+  var body: some View {
+    Form {
+      Section {
+        Picker("When the main window is closed", selection: $app.closeBehavior) {
+          Text("Quit MacMeet").tag(AppController.CloseBehavior.quit)
+          Text("Keep MacMeet running").tag(AppController.CloseBehavior.keepRunning)
+        }
+        .pickerStyle(.radioGroup)
+        .labelsHidden()
+
+        Toggle("Keep icon in the Dock", isOn: $app.keepInDock)
+          .disabled(!keepsRunning)
+
+        Toggle("Keep item in the menu bar", isOn: menuBarBinding)
+          .disabled(!keepsRunning || !app.keepInDock)
+      } header: {
+        Text("When the main window is closed")
+      } footer: {
+        if keepsRunning && !app.keepInDock {
+          Text("The menu bar item stays while the Dock icon is hidden, so you can always get back to MacMeet.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+      }
+    }
+    .formStyle(.grouped)
+    .frame(width: 440)
+    .fixedSize(horizontal: false, vertical: true)
+  }
+}

@@ -1,0 +1,163 @@
+import AppKit
+import SwiftUI
+
+/// Owns the main window and the preferences that decide what happens when it closes: quit, or
+/// keep running with a Dock icon, a menu bar item, or both.
+@MainActor
+final class AppController: NSObject, ObservableObject {
+  static let shared = AppController()
+
+  enum CloseBehavior: String, CaseIterable, Identifiable {
+    case quit
+    case keepRunning
+
+    var id: Self { self }
+  }
+
+  private enum Key {
+    static let closeBehavior = "closeBehavior"
+    static let keepInDock = "keepInDock"
+    static let keepInMenuBar = "keepInMenuBar"
+  }
+
+  private let defaults = UserDefaults.standard
+
+  @Published var closeBehavior: CloseBehavior {
+    didSet {
+      defaults.set(closeBehavior.rawValue, forKey: Key.closeBehavior)
+      applyPresence()
+    }
+  }
+
+  @Published var keepInDock: Bool {
+    didSet {
+      defaults.set(keepInDock, forKey: Key.keepInDock)
+      applyPresence()
+    }
+  }
+
+  @Published var keepInMenuBar: Bool {
+    didSet { defaults.set(keepInMenuBar, forKey: Key.keepInMenuBar) }
+  }
+
+  @Published var showingJoinSheet = false
+  @Published private(set) var isWindowVisible = false
+
+  /// Hiding the Dock icon forces the menu bar item on, so a running MacMeet is always reachable.
+  var effectiveKeepInMenuBar: Bool { keepInMenuBar || !keepInDock }
+
+  var showsMenuBarItem: Bool {
+    isWindowVisible || (closeBehavior == .keepRunning && effectiveKeepInMenuBar)
+  }
+
+  private var showsDockIcon: Bool {
+    isWindowVisible || closeBehavior == .quit || keepInDock
+  }
+
+  private lazy var window = makeWindow()
+
+  override init() {
+    defaults.register(defaults: [
+      Key.closeBehavior: CloseBehavior.keepRunning.rawValue,
+      Key.keepInDock: true,
+      Key.keepInMenuBar: true,
+    ])
+    closeBehavior = CloseBehavior(rawValue: defaults.string(forKey: Key.closeBehavior) ?? "") ?? .keepRunning
+    keepInDock = defaults.bool(forKey: Key.keepInDock)
+    keepInMenuBar = defaults.bool(forKey: Key.keepInMenuBar)
+    super.init()
+  }
+
+  // MARK: - Actions
+
+  func showWindow() {
+    isWindowVisible = true
+    applyPresence()
+    window.makeKeyAndOrderFront(nil)
+    NSApp.activate()
+  }
+
+  func newMeeting() {
+    showWindow()
+    MeetController.shared.newMeeting()
+  }
+
+  func goHome() {
+    showWindow()
+    MeetController.shared.goHome()
+  }
+
+  func showJoinSheet() {
+    showWindow()
+    showingJoinSheet = true
+  }
+
+  // MARK: - Window
+
+  private func makeWindow() -> NSWindow {
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 1280, height: 820),
+      styleMask: [
+        .titled,
+        .closable,
+        .miniaturizable,
+        .resizable,
+      ],
+      backing: .buffered,
+      defer: false
+    )
+    let hostingView = NSHostingView(rootView: ContentView())
+    hostingView.sceneBridgingOptions = [.toolbars, .title]
+    window.contentView = hostingView
+    window.contentMinSize = NSSize(width: 800, height: 560)
+    window.toolbarStyle = .unifiedCompact
+    window.tabbingMode = .disallowed
+    window.isReleasedWhenClosed = false
+    window.delegate = self
+    window.center()
+    window.setFrameAutosaveName("MainWindow")
+    return window
+  }
+
+  /// Shows or hides the Dock icon. The menu bar item follows `showsMenuBarItem` on its own.
+  private func applyPresence() {
+    let policy: NSApplication.ActivationPolicy = showsDockIcon ? .regular : .accessory
+    if NSApp.activationPolicy() != policy {
+      NSApp.setActivationPolicy(policy)
+    }
+  }
+}
+
+extension AppController: NSWindowDelegate {
+  /// Closing the window ends any meeting. Then the app either quits or hides the window and
+  /// waits in the background until it's reopened or handed a meeting link.
+  func windowShouldClose(_ sender: NSWindow) -> Bool {
+    switch closeBehavior {
+    case .quit:
+      // applicationShouldTerminate asks before leaving a meeting.
+      NSApp.terminate(nil)
+    case .keepRunning:
+      guard Self.confirmLeavingMeeting(
+        because: "Closing the window will disconnect you from the current call.",
+        confirmTitle: "Leave"
+      ) else { break }
+      MeetController.shared.leaveMeeting()
+      sender.orderOut(nil)
+      isWindowVisible = false
+      applyPresence()
+    }
+    return false
+  }
+
+  /// Returns true when there's no meeting to leave, or the user agrees to leave it.
+  static func confirmLeavingMeeting(because reason: String, confirmTitle: String) -> Bool {
+    guard MeetController.shared.isInCall else { return true }
+
+    let alert = NSAlert()
+    alert.messageText = "Leave the meeting?"
+    alert.informativeText = reason
+    alert.addButton(withTitle: confirmTitle)
+    alert.addButton(withTitle: "Cancel")
+    return alert.runModal() == .alertFirstButtonReturn
+  }
+}
