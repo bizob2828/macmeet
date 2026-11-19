@@ -21,6 +21,8 @@ other apps.
   MacMeet isn't the active app.
 - Links to sites outside Google open in your default browser.
 - Quitting while in a call asks for confirmation first.
+- Your video keeps sending while the MacMeet window is on another Space or covered by other
+  windows.
 - Opens Meet links handed to it by other apps, so a link router such as Finicky can send
   every Meet link to MacMeet (see [Opening Meet links with Finicky](#opening-meet-links-with-finicky)).
 

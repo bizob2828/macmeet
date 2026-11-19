@@ -29,6 +29,7 @@ final class MeetController: NSObject, ObservableObject {
 
   private var observers: Set<AnyCancellable> = []
   private var lastShortcutTime: TimeInterval = 0
+  private var callActivity: NSObjectProtocol?
 
   override init() {
     let config = WKWebViewConfiguration()
@@ -61,6 +62,12 @@ final class MeetController: NSObject, ObservableObject {
       .map { url in Self.meetingCode(in: url) }
       .assign(to: &$meetingCode)
 
+    $meetingCode
+      .map { $0 != nil }
+      .removeDuplicates()
+      .sink { [weak self] inCall in self?.keepCallRunning(inCall) }
+      .store(in: &observers)
+
     // Meet is a single-page app, so most of its URL changes don't commit a new navigation.
     webView.publisher(for: \.url)
       .removeDuplicates()
@@ -68,6 +75,36 @@ final class MeetController: NSObject, ObservableObject {
       .store(in: &observers)
 
     webView.load(URLRequest(url: Self.homeURL))
+  }
+
+  // MARK: - Background calls
+
+  /// Keeps a call's video flowing while the window is out of sight, such as on another Space or
+  /// behind other windows. WebKit normally marks an occluded page hidden, which stops
+  /// requestAnimationFrame and throttles timers; Meet's outgoing video depends on both, so the
+  /// video freezes while the audio keeps going. Occlusion detection comes back on after the call so
+  /// an idle Meet page doesn't keep drawing in the background. The process activity keeps App Nap
+  /// from throttling MacMeet itself, which feeds screen shares to the page.
+  private func keepCallRunning(_ inCall: Bool) {
+    DebugLog.write(inCall ? "Call started" : "Call ended")
+    Self.setWindowOcclusionDetection(!inCall, for: webView)
+    if inCall, callActivity == nil {
+      callActivity = ProcessInfo.processInfo.beginActivity(
+        options: .userInitiated,
+        reason: "In a Google Meet call"
+      )
+    } else if !inCall, let activity = callActivity {
+      ProcessInfo.processInfo.endActivity(activity)
+      callActivity = nil
+    }
+  }
+
+  /// Private WKWebView API; skipped if a future WebKit drops it.
+  private static func setWindowOcclusionDetection(_ enabled: Bool, for webView: WKWebView) {
+    typealias Setter = @convention(c) (AnyObject, Selector, Bool) -> Void
+    let selector = NSSelectorFromString("_setWindowOcclusionDetectionEnabled:")
+    guard webView.responds(to: selector) else { return }
+    unsafeBitCast(webView.method(for: selector), to: Setter.self)(webView, selector, enabled)
   }
 
   // MARK: - Navigation
