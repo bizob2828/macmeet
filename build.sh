@@ -15,6 +15,22 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/$APP_NAME" "$APP/Contents/MacOS/$APP_NAME"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+
+# Version: YYYY-MM-DD.NNN, where NNN counts the builds made that day (2026-11-19.005 is the fifth
+# build on November 19, 2026). .build-number holds the date and count of the last build. macOS
+# expects CFBundleVersion to be numeric, so it gets the same version as 20261119.5.
+TODAY="$(date +%Y-%m-%d)"
+BUILD_NUMBER=1
+if [[ -f .build-number ]]; then
+  read -r LAST_DATE LAST_NUMBER < .build-number
+  if [[ "$LAST_DATE" == "$TODAY" ]]; then
+    BUILD_NUMBER=$((10#$LAST_NUMBER + 1))
+  fi
+fi
+echo "$TODAY $BUILD_NUMBER" > .build-number
+VERSION="$(printf '%s.%03d' "$TODAY" "$BUILD_NUMBER")"
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${TODAY//-/}.$BUILD_NUMBER" "$APP/Contents/Info.plist"
 if [[ -f Resources/AppIcon.icns ]]; then
   cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
   /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string AppIcon" "$APP/Contents/Info.plist"
@@ -46,7 +62,7 @@ fi
 codesign --force --sign "$SIGN_WITH" "${SIGN_ARGS[@]}" --options runtime \
   --entitlements Resources/MacMeet.entitlements "$APP"
 
-echo "Built $APP (signed with: $SIGN_WITH)"
+echo "Built $APP $VERSION (signed with: $SIGN_WITH)"
 
 if [[ "${1:-}" == "--open" ]]; then
   open "$APP"

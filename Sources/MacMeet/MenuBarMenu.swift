@@ -33,6 +33,7 @@ struct MenuBarMenu: View {
 
     Divider()
 
+    Button("About MacMeet") { app.showAbout() }
     Button("Settings…") {
       // Without a Dock icon the app isn't active, so the Settings window would open behind
       // other apps.

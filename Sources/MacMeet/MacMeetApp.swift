@@ -21,6 +21,10 @@ struct MacMeetApp: App {
       SettingsView()
     }
     .commands {
+      CommandGroup(replacing: .appInfo) {
+        Button("About MacMeet") { app.showAbout() }
+      }
+
       CommandGroup(replacing: .newItem) {
         Button("New Meeting") { app.newMeeting() }
           .keyboardShortcut("n")

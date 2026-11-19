@@ -92,6 +92,35 @@ final class AppController: NSObject, ObservableObject {
     showingJoinSheet = true
   }
 
+  static let homepage = URL(string: "https://github.com/jsumners-nr/macmeet")!
+
+  /// The standard About panel, with the build's version and a link to the project's repository.
+  func showAbout() {
+    let info = Bundle.main.infoDictionary ?? [:]
+    let version = info["CFBundleShortVersionString"] as? String ?? "unknown"
+
+    let paragraph = NSMutableParagraphStyle()
+    paragraph.alignment = .center
+    let attributes: [NSAttributedString.Key: Any] = [
+      .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+      .foregroundColor: NSColor.secondaryLabelColor,
+      .paragraphStyle: paragraph,
+    ]
+    let credits = NSMutableAttributedString(string: "A native macOS app for Google Meet.\n", attributes: attributes)
+    var linkAttributes = attributes
+    linkAttributes[.link] = Self.homepage
+    credits.append(NSAttributedString(string: "github.com/jsumners-nr/macmeet", attributes: linkAttributes))
+
+    // Without a Dock icon the app isn't active, so the panel would open behind other apps.
+    NSApp.activate()
+    NSApp.orderFrontStandardAboutPanel(options: [
+      .applicationVersion: version,
+      // An empty build version keeps the panel from appending "(20261119.5)".
+      .version: "",
+      .credits: credits,
+    ])
+  }
+
   // MARK: - Window
 
   private func makeWindow() -> NSWindow {

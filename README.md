@@ -57,6 +57,11 @@ Then build:
 the certificate is missing, it signs ad-hoc instead and prints a warning; macOS then treats
 every build as a new app and asks for permissions again.
 
+Each build gets a version of the form `YYYY-MM-DD.NNN`, where `NNN` counts that day's builds:
+the fifth build on November 19, 2026 is `2026-11-19.005`. The count is kept in `.build-number`,
+which isn't checked in. The version appears in **About MacMeet**, in the MacMeet menu and the
+menu bar item.
+
 To install, copy the app to `/Applications` and launch it once so macOS registers it:
 
 ```sh
