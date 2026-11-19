@@ -38,6 +38,7 @@ final class MeetController: NSObject, ObservableObject {
     config.preferences.isElementFullscreenEnabled = true
     config.userContentController.addUserScript(NotificationBridge.userScript)
     config.userContentController.addUserScript(ScreenShareController.userScript)
+    config.userContentController.addUserScript(JoinMonitor.userScript)
 
     webView = WKWebView(frame: .zero, configuration: config)
     webView.customUserAgent = Self.userAgent
@@ -49,6 +50,7 @@ final class MeetController: NSObject, ObservableObject {
     webView.uiDelegate = self
     config.userContentController.add(NotificationBridge.shared, name: NotificationBridge.handlerName)
     config.userContentController.add(ScreenShareController.shared, name: ScreenShareController.handlerName)
+    config.userContentController.add(JoinMonitor.shared, name: JoinMonitor.handlerName)
     ScreenShareController.shared.webView = webView
 
     webView.publisher(for: \.title)
@@ -251,6 +253,9 @@ extension MeetController: WKNavigationDelegate {
       decisionHandler(.cancel)
       return
     }
+    if navigationAction.targetFrame?.isMainFrame ?? true {
+      JoinMonitor.shared.navigationStarted(to: url)
+    }
     decisionHandler(.allow)
   }
 
@@ -260,14 +265,26 @@ extension MeetController: WKNavigationDelegate {
 
   func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
     DebugLog.write("Navigation failed before committing: \(error.localizedDescription)")
+    Self.reportFailure(error)
   }
 
   func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
     DebugLog.write("Navigation failed: \(error.localizedDescription)")
+    Self.reportFailure(error)
+  }
+
+  /// A load cancelled because another one replaced it isn't a failure of the new one.
+  private static func reportFailure(_ error: Error) {
+    let error = error as NSError
+    guard !(error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled) else { return }
+    JoinMonitor.shared.navigationFailed(error)
   }
 
   func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
     DebugLog.write("Web content process terminated")
+    JoinMonitor.shared.navigationFailed(
+      NSError(domain: "MacMeet", code: 0, userInfo: [NSLocalizedDescriptionKey: "the page crashed"])
+    )
   }
 
   func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {

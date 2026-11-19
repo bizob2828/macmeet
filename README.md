@@ -20,6 +20,7 @@ other apps.
 - Meet notifications (chat messages, requests to join) appear in Notification Center when
   MacMeet isn't the active app.
 - Links to sites outside Google open in your default browser.
+- While a meeting page loads, a "Joining meeting…" indicator covers Meet's blank screen.
 - Quitting while in a call asks for confirmation first.
 - Your video keeps sending while the MacMeet window is on another Space or covered by other
   windows.
@@ -127,9 +128,10 @@ first.
   If you turn off the Dock icon, the menu bar item is always kept, so a running MacMeet can't
   become unreachable.
 
-Under **Troubleshooting**, **Record debug log** makes MacMeet record each link it receives and
-each page it opens to `~/Library/Logs/MacMeet/MacMeet.log`, which helps track down links that
-don't open the right meeting. **Show Log in Finder** reveals the file. Logging is off by default;
+Under **Troubleshooting**, **Record debug log** makes MacMeet record each link it receives,
+each page it opens, and how long each step of joining a meeting takes (page load, camera and
+microphone, and the first Meet screen) to `~/Library/Logs/MacMeet/MacMeet.log`. It helps track
+down links that don't open the right meeting and slow joins. **Show Log in Finder** reveals the file. Logging is off by default;
 the file is kept until you delete it.
 
 ### Keyboard shortcuts
@@ -231,6 +233,7 @@ browser.
 | `Sources/MacMeet/ScreenSharePicker.swift` | Screen and window picker |
 | `Sources/MacMeet/MeetController.swift` | Web view, navigation rules, permissions, link handling |
 | `Sources/MacMeet/DebugLog.swift` | Optional debug log, turned on in Settings |
+| `Sources/MacMeet/JoinMonitor.swift` | Joining overlay and join timing |
 | `Sources/MacMeet/NotificationBridge.swift` | Forwards Meet notifications to Notification Center |
 | `Sources/MacMeet/JoinMeetingView.swift` | Join a Meeting sheet |
 | `Sources/MacMeet/MeetWebView.swift` | Embeds the web view in SwiftUI |

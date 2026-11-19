@@ -64,6 +64,7 @@ struct ContentView: View {
   @ObservedObject private var meet = MeetController.shared
   @ObservedObject private var app = AppController.shared
   @ObservedObject private var screenShare = ScreenShareController.shared
+  @ObservedObject private var joinMonitor = JoinMonitor.shared
 
   /// Dismissing the picker any way other than Share counts as cancelling.
   private var screenSharePicker: Binding<ScreenShareController.PickerRequest?> {
@@ -76,6 +77,10 @@ struct ContentView: View {
   var body: some View {
     MeetWebView(webView: meet.webView)
       .ignoresSafeArea()
+      .overlay {
+        if joinMonitor.isJoining { JoiningOverlay() }
+      }
+      .animation(.easeInOut(duration: 0.2), value: joinMonitor.isJoining)
       .navigationTitle(meet.title)
       .navigationSubtitle(meet.meetingCode ?? "")
       .toolbar {
