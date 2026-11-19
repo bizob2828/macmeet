@@ -36,6 +36,17 @@ struct SettingsView: View {
             .foregroundStyle(.secondary)
         }
       }
+
+      Section {
+        Toggle("Record debug log", isOn: $app.debugLogging)
+        Button("Show Log in Finder") { app.showDebugLog() }
+      } header: {
+        Text("Troubleshooting")
+      } footer: {
+        Text("Records the links MacMeet receives and the pages it opens to ~/Library/Logs/MacMeet/MacMeet.log.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
     }
     .formStyle(.grouped)
     .frame(width: 440)

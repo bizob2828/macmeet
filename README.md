@@ -125,6 +125,11 @@ first.
   If you turn off the Dock icon, the menu bar item is always kept, so a running MacMeet can't
   become unreachable.
 
+Under **Troubleshooting**, **Record debug log** makes MacMeet record each link it receives and
+each page it opens to `~/Library/Logs/MacMeet/MacMeet.log`, which helps track down links that
+don't open the right meeting. **Show Log in Finder** reveals the file. Logging is off by default;
+the file is kept until you delete it.
+
 ### Keyboard shortcuts
 
 | Shortcut | Action |
@@ -222,6 +227,7 @@ browser.
 | `Sources/MacMeet/ScreenCaptureSession.swift` | ScreenCaptureKit capture of a display or window |
 | `Sources/MacMeet/ScreenSharePicker.swift` | Screen and window picker |
 | `Sources/MacMeet/MeetController.swift` | Web view, navigation rules, permissions, link handling |
+| `Sources/MacMeet/DebugLog.swift` | Optional debug log, turned on in Settings |
 | `Sources/MacMeet/NotificationBridge.swift` | Forwards Meet notifications to Notification Center |
 | `Sources/MacMeet/JoinMeetingView.swift` | Join a Meeting sheet |
 | `Sources/MacMeet/MeetWebView.swift` | Embeds the web view in SwiftUI |

@@ -115,12 +115,14 @@ struct ContentView: View {
 final class AppDelegate: NSObject, NSApplicationDelegate {
   @MainActor
   func applicationDidFinishLaunching(_ notification: Notification) {
+    DebugLog.write("Finished launching")
     NotificationBridge.requestAuthorization()
     AppController.shared.showWindow()
   }
 
   @MainActor
   func application(_ application: NSApplication, open urls: [URL]) {
+    DebugLog.write("Received \(urls.map(\.absoluteString))")
     guard let url = urls.last else { return }
     AppController.shared.showWindow()
     MeetController.shared.open(url)

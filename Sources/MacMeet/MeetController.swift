@@ -61,6 +61,12 @@ final class MeetController: NSObject, ObservableObject {
       .map { url in Self.meetingCode(in: url) }
       .assign(to: &$meetingCode)
 
+    // Meet is a single-page app, so most of its URL changes don't commit a new navigation.
+    webView.publisher(for: \.url)
+      .removeDuplicates()
+      .sink { url in DebugLog.write("URL is \(url?.absoluteString ?? "nil")") }
+      .store(in: &observers)
+
     webView.load(URLRequest(url: Self.homeURL))
   }
 
@@ -78,6 +84,7 @@ final class MeetController: NSObject, ObservableObject {
   /// Handles a URL handed to the app by another application: a Meet link
   /// (`https://meet.google.com/abc-defg-hij`), `macmeet://abc-defg-hij`, or `macmeet://new`.
   func open(_ url: URL) {
+    DebugLog.write("Opening \(url.absoluteString)")
     if url.scheme == "macmeet" {
       if url.host() == "new" {
         newMeeting()
@@ -196,6 +203,9 @@ extension MeetController: WKNavigationDelegate {
     // Only user-clicked links leave the app. Redirects (e.g. a company SSO provider during
     // sign-in) must stay in the web view or the login flow breaks.
     let url = navigationAction.request.url
+    if navigationAction.targetFrame?.isMainFrame ?? true {
+      DebugLog.write("Navigating (\(navigationAction.navigationType.name)) to \(url?.absoluteString ?? "nil")")
+    }
     if navigationAction.navigationType == .linkActivated,
        navigationAction.targetFrame?.isMainFrame ?? true,
        !Self.isGoogleURL(url),
@@ -207,7 +217,24 @@ extension MeetController: WKNavigationDelegate {
     decisionHandler(.allow)
   }
 
+  func webView(_ webView: WKWebView, didReceiveServerRedirectForProvisionalNavigation navigation: WKNavigation!) {
+    DebugLog.write("Redirected to \(webView.url?.absoluteString ?? "nil")")
+  }
+
+  func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+    DebugLog.write("Navigation failed before committing: \(error.localizedDescription)")
+  }
+
+  func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+    DebugLog.write("Navigation failed: \(error.localizedDescription)")
+  }
+
+  func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+    DebugLog.write("Web content process terminated")
+  }
+
   func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+    DebugLog.write("Committed \(webView.url?.absoluteString ?? "nil")")
     ScreenShareController.shared.pageDidNavigate()
   }
 }
@@ -279,5 +306,19 @@ extension MeetController: WKUIDelegate {
     panel.allowsMultipleSelection = parameters.allowsMultipleSelection
     panel.canChooseDirectories = parameters.allowsDirectories
     completionHandler(panel.runModal() == .OK ? panel.urls : nil)
+  }
+}
+
+private extension WKNavigationType {
+  var name: String {
+    switch self {
+    case .linkActivated: "link"
+    case .formSubmitted: "form"
+    case .backForward: "back/forward"
+    case .reload: "reload"
+    case .formResubmitted: "form resubmit"
+    case .other: "other"
+    @unknown default: "unknown"
+    }
   }
 }

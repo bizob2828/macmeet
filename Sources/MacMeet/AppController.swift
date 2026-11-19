@@ -40,6 +40,14 @@ final class AppController: NSObject, ObservableObject {
     didSet { defaults.set(keepInMenuBar, forKey: Key.keepInMenuBar) }
   }
 
+  /// Records links and navigations to `DebugLog.fileURL` for troubleshooting.
+  @Published var debugLogging: Bool {
+    didSet {
+      defaults.set(debugLogging, forKey: DebugLog.enabledKey)
+      DebugLog.write("Debug logging enabled, version \(Self.version)")
+    }
+  }
+
   @Published var showingJoinSheet = false
   @Published private(set) var isWindowVisible = false
 
@@ -65,6 +73,7 @@ final class AppController: NSObject, ObservableObject {
     closeBehavior = CloseBehavior(rawValue: defaults.string(forKey: Key.closeBehavior) ?? "") ?? .keepRunning
     keepInDock = defaults.bool(forKey: Key.keepInDock)
     keepInMenuBar = defaults.bool(forKey: Key.keepInMenuBar)
+    debugLogging = defaults.bool(forKey: DebugLog.enabledKey)
     super.init()
   }
 
@@ -94,10 +103,21 @@ final class AppController: NSObject, ObservableObject {
 
   static let homepage = URL(string: "https://github.com/jsumners-nr/macmeet")!
 
+  static var version: String {
+    Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+  }
+
+  func showDebugLog() {
+    if FileManager.default.fileExists(atPath: DebugLog.fileURL.path()) {
+      NSWorkspace.shared.activateFileViewerSelecting([DebugLog.fileURL])
+    } else {
+      NSWorkspace.shared.open(DebugLog.fileURL.deletingLastPathComponent().deletingLastPathComponent())
+    }
+  }
+
   /// The standard About panel, with the build's version and a link to the project's repository.
   func showAbout() {
-    let info = Bundle.main.infoDictionary ?? [:]
-    let version = info["CFBundleShortVersionString"] as? String ?? "unknown"
+    let version = Self.version
 
     let paragraph = NSMutableParagraphStyle()
     paragraph.alignment = .center
