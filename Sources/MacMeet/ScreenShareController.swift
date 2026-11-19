@@ -264,7 +264,13 @@ final class ScreenShareController: NSObject, ObservableObject, WKScriptMessageHa
   func cancelPicker() {
     guard pickerRequest != nil else { return }
     pickerRequest = nil
-    reject("AbortError", "The user cancelled screen sharing.")
+    // Meet treats a request as cancelled by the user only when it fails the way Safari's does:
+    // a NotAllowedError with exactly WebKit's message. Any other error makes it show "Something
+    // went wrong" or its permission instructions.
+    reject(
+      "NotAllowedError",
+      "The request is not allowed by the user agent or the platform in the current context, possibly because the user denied permission."
+    )
   }
 
   /// A navigation replaces the page, and with it the script's state, so drop any share.
@@ -310,7 +316,7 @@ final class ScreenShareController: NSObject, ObservableObject, WKScriptMessageHa
   // MARK: - Helpers
 
   /// Meet answers a `NotAllowedError` with instructions for Safari's per-site settings, which
-  /// don't apply here, so refusals use `AbortError` instead.
+  /// don't apply here, so refusals other than a cancelled picker use `AbortError` instead.
   private func reject(_ name: String, _ message: String) {
     callPage("failed", name, message)
   }
