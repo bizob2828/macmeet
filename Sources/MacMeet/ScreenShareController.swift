@@ -7,7 +7,8 @@ import WebKit
 /// WKWebView's own `getDisplayMedia` never completes in a third-party app: WebKit accepts the
 /// request but neither its ScreenCaptureKit picker nor its older prompt ever appears. Instead, a
 /// page script replaces `getDisplayMedia`, MacMeet shows its own picker, captures with
-/// ScreenCaptureKit, and streams JPEG frames into a canvas whose video track goes to Meet.
+/// ScreenCaptureKit, and streams H.264 frames to the page, which decodes them with WebCodecs into
+/// a canvas whose video track goes to Meet.
 @MainActor
 final class ScreenShareController: NSObject, ObservableObject, WKScriptMessageHandler {
   static let shared = ScreenShareController()
@@ -54,10 +55,43 @@ final class ScreenShareController: NSObject, ObservableObject, WKScriptMessageHa
         return 15;
       };
 
+      const fromBase64 = Uint8Array.fromBase64
+        ? (base64) => Uint8Array.fromBase64(base64)
+        : async (base64) => new Uint8Array(await (await fetch(`data:application/octet-stream;base64,${base64}`)).arrayBuffer());
+
+      const makeDecoder = (current) => new VideoDecoder({
+        output(videoFrame) {
+          if (session === current) {
+            const { canvas, context } = current;
+            if (canvas.width !== videoFrame.displayWidth || canvas.height !== videoFrame.displayHeight) {
+              canvas.width = videoFrame.displayWidth;
+              canvas.height = videoFrame.displayHeight;
+            }
+            context.drawImage(videoFrame, 0, 0);
+          }
+          videoFrame.close();
+        },
+        error() {
+          current.decoder = null;
+        },
+      });
+
+      // Resolves when the decoder takes a frame off its queue, or after a timeout in case it
+      // closes or fails first.
+      const dequeued = (decoder) => new Promise((resolve) => {
+        const done = () => {
+          clearTimeout(timer);
+          resolve();
+        };
+        const timer = setTimeout(done, 500);
+        decoder.addEventListener('dequeue', done, { once: true });
+      });
+
       const endSession = () => {
         if (!session) return null;
         const ended = session;
         session = null;
+        if (ended.decoder && ended.decoder.state !== 'closed') ended.decoder.close();
         ended.stopTrack();
         return ended;
       };
@@ -97,24 +131,28 @@ final class ScreenShareController: NSObject, ObservableObject, WKScriptMessageHa
           track.getSettings = () => ({ ...getSettings(), displaySurface: surface, width: canvas.width, height: canvas.height });
           Object.defineProperty(track, 'label', { value: label });
 
-          session = { canvas, context, track, stopTrack };
+          session = { canvas, context, track, stopTrack, decoder: null };
           pending.resolve(stream);
           pending = null;
         },
 
-        async frame(base64) {
+        // Queues one H.264 frame for decoding; the decoder draws it. Resolves once the decoder
+        // has room for the next frame, and returns 'keyframe' when the decoder needs to start
+        // over from a key frame. (WebKit's decoder holds each frame until the next arrives, so
+        // waiting for the draw itself would stall.)
+        async frame({ data, key, timestamp, codec, description }) {
           const current = session;
           if (!current) return;
-          const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-          const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
-          if (session === current) {
-            if (current.canvas.width !== bitmap.width || current.canvas.height !== bitmap.height) {
-              current.canvas.width = bitmap.width;
-              current.canvas.height = bitmap.height;
-            }
-            current.context.drawImage(bitmap, 0, 0);
+          if (codec) {
+            if (current.decoder) current.decoder.close();
+            current.decoder = makeDecoder(current);
+            current.decoder.configure({ codec, description: await fromBase64(description), optimizeForLatency: true });
           }
-          bitmap.close();
+          const decoder = current.decoder;
+          if (!decoder || decoder.state !== 'configured') return 'keyframe';
+
+          decoder.decode(new EncodedVideoChunk({ type: key ? 'key' : 'delta', timestamp, data: await fromBase64(data) }));
+          while (decoder.state === 'configured' && decoder.decodeQueueSize > 2) await dequeued(decoder);
         },
 
         failed(name, message) {
@@ -193,8 +231,8 @@ final class ScreenShareController: NSObject, ObservableObject, WKScriptMessageHa
     let session = ScreenCaptureSession(
       filter: filter,
       frameRate: request.frameRate,
-      onFrame: { session, base64 in
-        Task { @MainActor in ScreenShareController.shared.deliver(base64, from: session) }
+      onFrame: { session, frame in
+        Task { @MainActor in ScreenShareController.shared.deliver(frame, from: session) }
       },
       onStop: { session in
         Task { @MainActor in ScreenShareController.shared.captureEnded(session) }
@@ -237,12 +275,22 @@ final class ScreenShareController: NSObject, ObservableObject, WKScriptMessageHa
 
   // MARK: - Capture
 
-  private func deliver(_ base64: String, from session: ScreenCaptureSession) {
+  private func deliver(_ frame: ScreenCaptureSession.EncodedFrame, from session: ScreenCaptureSession) {
     guard self.session === session, let webView else {
       session.frameDelivered()
       return
     }
-    webView.evaluateJavaScript("window.__macmeetScreenShare.frame('\(base64)')") { _, _ in
+    // Passing the frame as an argument spares the page from parsing it as script source, and
+    // awaiting the draw means the next frame is captured only once the page is ready for it.
+    webView.callAsyncJavaScript(
+      "return await window.__macmeetScreenShare.frame(frame)",
+      arguments: ["frame": frame.dictionary],
+      in: nil,
+      in: .page
+    ) { result in
+      if case .success(let value) = result, value as? String == "keyframe" {
+        session.requestKeyFrame()
+      }
       session.frameDelivered()
     }
   }
