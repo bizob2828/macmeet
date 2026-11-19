@@ -28,6 +28,17 @@ struct ScreenSharePicker: View {
       }
       .frame(width: 440, height: 340)
 
+      // ScreenCaptureKit only reports windows on other Spaces as off screen, alongside minimized
+      // and hidden ones, and apps stop drawing windows that aren't visible.
+      Label(
+        "Only windows on this desktop are listed. To share a window from another desktop, move it to this desktop first.",
+        systemImage: "info.circle"
+      )
+      .font(.caption)
+      .foregroundStyle(.secondary)
+      .frame(width: 440, alignment: .leading)
+      .fixedSize(horizontal: false, vertical: true)
+
       HStack {
         Spacer()
         Button("Cancel", role: .cancel, action: onCancel)

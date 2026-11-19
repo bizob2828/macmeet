@@ -213,7 +213,8 @@ browser.
   ScreenCaptureKit, and sends the frames to Meet. It needs the Screen Recording permission:
   the first time you present, MacMeet asks for it. Turn MacMeet on in **System Settings →
   Privacy & Security → Screen & System Audio Recording**, then quit and reopen MacMeet.
-  Sharing system audio isn't supported.
+  Sharing system audio isn't supported. The picker lists only windows on the current desktop
+  (Space); to share a window from another desktop, move it to the current desktop first.
 - **Microphone and camera menu items** work by sending Meet's own ⌘D and ⌘E shortcuts to the
   page. If Meet changes those shortcuts, the menu items stop working.
 
