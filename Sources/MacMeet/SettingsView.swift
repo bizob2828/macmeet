@@ -1,3 +1,4 @@
+import KeyboardShortcuts
 import SwiftUI
 
 struct SettingsView: View {
@@ -35,6 +36,20 @@ struct SettingsView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
         }
+      }
+
+      Section {
+        Toggle("Use system-wide hotkeys for mute and camera", isOn: $app.useSystemWideHotkeys)
+        KeyboardShortcuts.Recorder("Mute/unmute microphone:", name: .toggleMicrophone)
+          .disabled(!app.useSystemWideHotkeys)
+        KeyboardShortcuts.Recorder("Turn camera on/off:", name: .toggleCamera)
+          .disabled(!app.useSystemWideHotkeys)
+      } header: {
+        Text("Keyboard Shortcuts")
+      } footer: {
+        Text("When enabled, these shortcuts mute your microphone or turn off your camera during a call, even when MacMeet isn't the active app. Click a shortcut to record a new one.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
       }
 
       Section {

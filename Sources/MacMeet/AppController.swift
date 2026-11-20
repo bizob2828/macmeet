@@ -1,4 +1,5 @@
 import AppKit
+import KeyboardShortcuts
 import SwiftUI
 
 /// Owns the main window and the preferences that decide what happens when it closes: quit, or
@@ -18,6 +19,7 @@ final class AppController: NSObject, ObservableObject {
     static let closeBehavior = "closeBehavior"
     static let keepInDock = "keepInDock"
     static let keepInMenuBar = "keepInMenuBar"
+    static let useSystemWideHotkeys = "useSystemWideHotkeys"
   }
 
   private let defaults = UserDefaults.standard
@@ -48,6 +50,11 @@ final class AppController: NSObject, ObservableObject {
     }
   }
 
+  /// Lets the mic/camera toggle shortcuts work even when MacMeet isn't the frontmost app.
+  @Published var useSystemWideHotkeys: Bool {
+    didSet { defaults.set(useSystemWideHotkeys, forKey: Key.useSystemWideHotkeys) }
+  }
+
   @Published var showingJoinSheet = false
   @Published private(set) var isWindowVisible = false
 
@@ -69,12 +76,23 @@ final class AppController: NSObject, ObservableObject {
       Key.closeBehavior: CloseBehavior.keepRunning.rawValue,
       Key.keepInDock: true,
       Key.keepInMenuBar: true,
+      Key.useSystemWideHotkeys: false,
     ])
     closeBehavior = CloseBehavior(rawValue: defaults.string(forKey: Key.closeBehavior) ?? "") ?? .keepRunning
     keepInDock = defaults.bool(forKey: Key.keepInDock)
     keepInMenuBar = defaults.bool(forKey: Key.keepInMenuBar)
     debugLogging = defaults.bool(forKey: DebugLog.enabledKey)
+    useSystemWideHotkeys = defaults.bool(forKey: Key.useSystemWideHotkeys)
     super.init()
+
+    KeyboardShortcuts.onKeyDown(for: .toggleMicrophone) { [weak self] in
+      guard self?.useSystemWideHotkeys == true else { return }
+      MeetController.shared.toggleMicrophone()
+    }
+    KeyboardShortcuts.onKeyDown(for: .toggleCamera) { [weak self] in
+      guard self?.useSystemWideHotkeys == true else { return }
+      MeetController.shared.toggleCamera()
+    }
   }
 
   // MARK: - Actions

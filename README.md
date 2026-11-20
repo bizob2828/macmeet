@@ -33,6 +33,12 @@ other apps.
 - Swift 6 toolchain. The Xcode Command Line Tools are enough; Xcode itself is not required.
   Install them with `xcode-select --install`.
 
+MacMeet depends on one package, [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts),
+for the configurable system-wide mic/camera hotkeys; Swift Package Manager fetches it
+automatically on the first build. It's pinned to `1.15.0` — later releases use SwiftUI's
+`#Preview`/`@Entry` macros, which need a macro plugin that ships only with Xcode, not the
+Command Line Tools.
+
 ## Building and installing
 
 First, create a local code signing certificate. You only need to do this once:
@@ -128,6 +134,12 @@ first.
   If you turn off the Dock icon, the menu bar item is always kept, so a running MacMeet can't
   become unreachable.
 
+Under **Keyboard Shortcuts**, **Use system-wide hotkeys for mute and camera** (off by default)
+makes the two shortcuts below mute your microphone or turn off your camera during a call even
+when MacMeet isn't the active app. Each shortcut defaults to ⌘D/⌘E but can be changed to
+anything — click it and press a new key combination. For example, to match Zoom's own global
+shortcuts, set them to ⇧⌘A (mute/unmute) and ⇧⌘V (start/stop video).
+
 Under **Troubleshooting**, **Record debug log** makes MacMeet record each link it receives,
 each page it opens, and how long each step of joining a meeting takes (page load, camera and
 microphone, and the first Meet screen) to `~/Library/Logs/MacMeet/MacMeet.log`. It helps track
@@ -142,8 +154,8 @@ the file is kept until you delete it.
 | ⌘N | New meeting |
 | ⌘J | Join a meeting |
 | ⇧⌘H | Meet home page |
-| ⌘D | Toggle microphone (in a call) |
-| ⌘E | Toggle camera (in a call) |
+| ⌘D | Toggle microphone (in a call; system-wide and customizable if enabled in Settings) |
+| ⌘E | Toggle camera (in a call; system-wide and customizable if enabled in Settings) |
 | ⇧⌘C | Copy meeting link (in a call) |
 | ⌘R | Reload the page |
 
@@ -232,6 +244,7 @@ browser.
 | `Sources/MacMeet/ScreenCaptureSession.swift` | ScreenCaptureKit capture of a display or window |
 | `Sources/MacMeet/ScreenSharePicker.swift` | Screen and window picker |
 | `Sources/MacMeet/MeetController.swift` | Web view, navigation rules, permissions, link handling |
+| `Sources/MacMeet/KeyboardShortcutNames.swift` | Names for the configurable system-wide mic/camera hotkeys |
 | `Sources/MacMeet/DebugLog.swift` | Optional debug log, turned on in Settings |
 | `Sources/MacMeet/JoinMonitor.swift` | Joining overlay and join timing |
 | `Sources/MacMeet/NotificationBridge.swift` | Forwards Meet notifications to Notification Center |
