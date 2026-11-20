@@ -80,6 +80,11 @@ final class AppController: NSObject, ObservableObject {
   // MARK: - Actions
 
   func showWindow() {
+    // A hidden window remembers the Space it was closed on. Bring it to the current Space
+    // instead; windowDidBecomeKey drops this so a visible window stays where the user puts it.
+    if !window.isVisible {
+      window.collectionBehavior.insert(.moveToActiveSpace)
+    }
     isWindowVisible = true
     applyPresence()
     window.makeKeyAndOrderFront(nil)
@@ -196,6 +201,10 @@ extension AppController: NSWindowDelegate {
       applyPresence()
     }
     return false
+  }
+
+  func windowDidBecomeKey(_ notification: Notification) {
+    window.collectionBehavior.remove(.moveToActiveSpace)
   }
 
   /// Returns true when there's no meeting to leave, or the user agrees to leave it.
