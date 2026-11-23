@@ -307,15 +307,21 @@ extension MeetController: WKUIDelegate {
     decisionHandler(origin.host == "meet.google.com" ? .grant : .prompt)
   }
 
-  /// Handles `window.open` and `target="_blank"`: Meet links stay here, everything else goes to
-  /// the default browser.
+  /// Handles `window.open` and `target="_blank"`: Meet links stay here, blank pages the opener
+  /// fills in itself (such as a popped-out presentation) get their own window, and everything else
+  /// goes to the default browser.
   func webView(
     _ webView: WKWebView,
     createWebViewWith configuration: WKWebViewConfiguration,
     for navigationAction: WKNavigationAction,
     windowFeatures: WKWindowFeatures
   ) -> WKWebView? {
-    if let url = navigationAction.request.url {
+    let url = navigationAction.request.url
+    DebugLog.write("Page opened a window for \(url?.absoluteString ?? "nil")")
+    if url == nil || url?.absoluteString == "" || url?.scheme == "about" {
+      return PopupWindow.show(configuration: configuration, features: windowFeatures)
+    }
+    if let url {
       if Self.isMeetURL(url) {
         webView.load(navigationAction.request)
       } else {
