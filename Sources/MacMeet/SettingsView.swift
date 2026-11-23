@@ -23,6 +23,8 @@ struct SettingsView: View {
         .pickerStyle(.radioGroup)
         .labelsHidden()
 
+        Toggle("Ask before leaving a meeting", isOn: $app.asksBeforeLeavingOnClose)
+
         Toggle("Keep icon in the Dock", isOn: $app.keepInDock)
           .disabled(!keepsRunning)
 

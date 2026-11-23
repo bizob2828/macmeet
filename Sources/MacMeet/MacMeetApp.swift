@@ -142,6 +142,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   @MainActor
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+    let app = AppController.shared
+    if app.isQuittingFromWindowClose && !app.asksBeforeLeavingOnClose { return .terminateNow }
     let confirmed = AppController.confirmLeavingMeeting(
       because: "Quitting MacMeet will disconnect you from the current call.",
       confirmTitle: "Quit"

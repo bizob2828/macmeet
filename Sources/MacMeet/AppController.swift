@@ -20,6 +20,7 @@ final class AppController: NSObject, ObservableObject {
     static let keepInDock = "keepInDock"
     static let keepInMenuBar = "keepInMenuBar"
     static let useSystemWideHotkeys = "useSystemWideHotkeys"
+    static let asksBeforeLeavingOnClose = "asksBeforeLeavingOnClose"
   }
 
   private let defaults = UserDefaults.standard
@@ -55,6 +56,16 @@ final class AppController: NSObject, ObservableObject {
     didSet { defaults.set(useSystemWideHotkeys, forKey: Key.useSystemWideHotkeys) }
   }
 
+  /// Asks before closing the main window disconnects a call. When off, closing the window leaves
+  /// the call right away.
+  @Published var asksBeforeLeavingOnClose: Bool {
+    didSet { defaults.set(asksBeforeLeavingOnClose, forKey: Key.asksBeforeLeavingOnClose) }
+  }
+
+  /// Set while closing the window quits the app, so applicationShouldTerminate can skip its prompt
+  /// when `asksBeforeLeavingOnClose` is off.
+  private(set) var isQuittingFromWindowClose = false
+
   @Published var showingJoinSheet = false
   @Published private(set) var isWindowVisible = false
 
@@ -77,12 +88,14 @@ final class AppController: NSObject, ObservableObject {
       Key.keepInDock: true,
       Key.keepInMenuBar: true,
       Key.useSystemWideHotkeys: false,
+      Key.asksBeforeLeavingOnClose: true,
     ])
     closeBehavior = CloseBehavior(rawValue: defaults.string(forKey: Key.closeBehavior) ?? "") ?? .keepRunning
     keepInDock = defaults.bool(forKey: Key.keepInDock)
     keepInMenuBar = defaults.bool(forKey: Key.keepInMenuBar)
     debugLogging = defaults.bool(forKey: DebugLog.enabledKey)
     useSystemWideHotkeys = defaults.bool(forKey: Key.useSystemWideHotkeys)
+    asksBeforeLeavingOnClose = defaults.bool(forKey: Key.asksBeforeLeavingOnClose)
     super.init()
 
     KeyboardShortcuts.onKeyDown(for: .toggleMicrophone) { [weak self] in
@@ -206,10 +219,12 @@ extension AppController: NSWindowDelegate {
   func windowShouldClose(_ sender: NSWindow) -> Bool {
     switch closeBehavior {
     case .quit:
-      // applicationShouldTerminate asks before leaving a meeting.
+      // applicationShouldTerminate asks before leaving a meeting, unless that's turned off.
+      isQuittingFromWindowClose = true
       NSApp.terminate(nil)
+      isQuittingFromWindowClose = false
     case .keepRunning:
-      guard Self.confirmLeavingMeeting(
+      guard !asksBeforeLeavingOnClose || Self.confirmLeavingMeeting(
         because: "Closing the window will disconnect you from the current call.",
         confirmTitle: "Leave"
       ) else { break }
