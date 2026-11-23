@@ -118,8 +118,12 @@ final class AppController: NSObject, ObservableObject {
     }
     isWindowVisible = true
     applyPresence()
-    window.makeKeyAndOrderFront(nil)
     NSApp.activate()
+    window.makeKeyAndOrderFront(nil)
+    // An inactive app (running from the menu bar, or with its Dock icon just restored) may not
+    // be activated until later, and makeKeyAndOrderFront alone leaves its window behind the
+    // active app's. Raise the window over every app's windows regardless.
+    window.orderFrontRegardless()
   }
 
   func newMeeting() {
