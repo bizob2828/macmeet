@@ -24,14 +24,18 @@ struct SettingsView: View {
         .labelsHidden()
 
         Toggle("Ask before leaving a meeting", isOn: $app.asksBeforeLeavingOnClose)
+      } header: {
+        Text("When the main window is closed")
+      }
 
+      Section {
         Toggle("Keep icon in the Dock", isOn: $app.keepInDock)
           .disabled(!keepsRunning)
 
         Toggle("Keep item in the menu bar", isOn: menuBarBinding)
           .disabled(!keepsRunning || !app.keepInDock)
       } header: {
-        Text("When the main window is closed")
+        Text("While running in the background")
       } footer: {
         if keepsRunning && !app.keepInDock {
           Text("The menu bar item stays while the Dock icon is hidden, so you can always get back to MacMeet.")
