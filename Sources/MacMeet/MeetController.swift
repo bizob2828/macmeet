@@ -171,6 +171,59 @@ final class MeetController: NSObject, ObservableObject {
   func toggleMicrophone() { sendMeetShortcut("d", keyCode: 2) }
   func toggleCamera() { sendMeetShortcut("e", keyCode: 14) }
 
+  /// Mutes the microphone and/or turns off the camera on Meet's pre-join screen, if the matching
+  /// setting is on. Unlike the shortcuts above, this clicks only a button that's currently on, so
+  /// it always lands on muted/off even if Meet already remembered that state from a prior call.
+  func applyJoinPreferences() {
+    let app = AppController.shared
+    guard app.muteMicrophoneOnJoin || app.turnOffCameraOnJoin else { return }
+    webView.evaluateJavaScript(Self.joinPreferencesScript(
+      muteMicrophone: app.muteMicrophoneOnJoin,
+      turnOffCamera: app.turnOffCameraOnJoin
+    )) { result, error in
+      if let error { DebugLog.write("Join preferences script failed: \(error.localizedDescription)") }
+      if let result { DebugLog.write("Join preferences: \(result)") }
+    }
+  }
+
+  private static func joinPreferencesScript(muteMicrophone: Bool, turnOffCamera: Bool) -> String {
+    let clicks = [
+      muteMicrophone ? "mic: click(/microphone/i, /^turn off/i)," : "",
+      turnOffCamera ? "camera: click(/camera/i, /^turn off/i)," : "",
+    ].joined()
+    return """
+    (() => {
+      const candidates = () => [...document.querySelectorAll('[aria-label]')]
+        .filter((element) => /microphone|camera/i.test(element.getAttribute('aria-label')))
+        .map((element) => ({
+          tag: element.tagName,
+          ariaLabel: element.getAttribute('aria-label'),
+          visible: element.getClientRects().length > 0,
+        }));
+
+      // Dispatches a full pointer/mouse sequence instead of .click(), since Meet's buttons may
+      // only react to the events a real click produces, not element.click()'s synthetic one.
+      const press = (element) => {
+        for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
+          element.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
+        }
+      };
+
+      const click = (labelPattern, actionPattern) => {
+        const element = [...document.querySelectorAll('[aria-label]')].find((element) =>
+          labelPattern.test(element.getAttribute('aria-label')) &&
+          actionPattern.test(element.getAttribute('aria-label')) &&
+          element.getClientRects().length > 0
+        );
+        if (element) press(element);
+        return { found: !!element, ariaLabel: element?.getAttribute('aria-label') ?? null };
+      };
+
+      return JSON.stringify({ \(clicks) candidates: candidates() });
+    })();
+    """
+  }
+
   /// Replays Meet's own ⌘-shortcut into the web view as a native key event. When the web view
   /// doesn't consume a ⌘-key event, WebKit hands it back to the main menu, which would call us
   /// again; the debounce breaks that loop.

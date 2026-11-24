@@ -45,6 +45,17 @@ struct SettingsView: View {
       }
 
       Section {
+        Toggle("Mute microphone", isOn: $app.muteMicrophoneOnJoin)
+        Toggle("Turn off camera", isOn: $app.turnOffCameraOnJoin)
+      } header: {
+        Text("When joining a meeting")
+      } footer: {
+        Text("Applied as soon as Meet's pre-join screen appears, before you click Join.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+
+      Section {
         Toggle("Use system-wide hotkeys for mute and camera", isOn: $app.useSystemWideHotkeys)
         KeyboardShortcuts.Recorder("Mute/unmute microphone:", name: .toggleMicrophone)
           .disabled(!app.useSystemWideHotkeys)
