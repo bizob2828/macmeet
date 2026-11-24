@@ -168,7 +168,18 @@ final class JoinMonitor: NSObject, ObservableObject, WKScriptMessageHandler {
     let detail = body["detail"] as? String ?? ""
     let pageTime = (body["time"] as? NSNumber)?.intValue ?? 0
     log("\(event)\(detail.isEmpty ? "" : " (\(detail))"), page +\(pageTime) ms")
-    if event == "screen shown" { finish("Meet showed its \(detail) screen") }
+    if event == "screen shown" {
+      // Most joins show a pre-join lobby first. Starting your own ad hoc meeting skips straight
+      // to the in-call screen instead, so that needs the same mic/camera preferences applied.
+      if detail == "pre-join" || detail == "in call" { MeetController.shared.applyJoinPreferences() }
+      finish("Meet showed its \(detail) screen")
+    } else if event == "media started" {
+      // The pre-join screen's mic/camera buttons can render before Meet actually requests the
+      // camera/mic, so a click right as the screen appears can land before the real track exists
+      // and get overwritten once it attaches. Reapplying here catches that real track too; it's a
+      // no-op once the preference is already satisfied.
+      MeetController.shared.applyJoinPreferences()
+    }
   }
 }
 

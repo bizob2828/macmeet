@@ -21,6 +21,8 @@ final class AppController: NSObject, ObservableObject {
     static let keepInMenuBar = "keepInMenuBar"
     static let useSystemWideHotkeys = "useSystemWideHotkeys"
     static let asksBeforeLeavingOnClose = "asksBeforeLeavingOnClose"
+    static let muteMicrophoneOnJoin = "muteMicrophoneOnJoin"
+    static let turnOffCameraOnJoin = "turnOffCameraOnJoin"
   }
 
   private let defaults = UserDefaults.standard
@@ -62,6 +64,16 @@ final class AppController: NSObject, ObservableObject {
     didSet { defaults.set(asksBeforeLeavingOnClose, forKey: Key.asksBeforeLeavingOnClose) }
   }
 
+  /// Mutes the microphone on Meet's pre-join screen before every meeting is joined.
+  @Published var muteMicrophoneOnJoin: Bool {
+    didSet { defaults.set(muteMicrophoneOnJoin, forKey: Key.muteMicrophoneOnJoin) }
+  }
+
+  /// Turns off the camera on Meet's pre-join screen before every meeting is joined.
+  @Published var turnOffCameraOnJoin: Bool {
+    didSet { defaults.set(turnOffCameraOnJoin, forKey: Key.turnOffCameraOnJoin) }
+  }
+
   /// Set while closing the window quits the app, so applicationShouldTerminate can skip its prompt
   /// when `asksBeforeLeavingOnClose` is off.
   private(set) var isQuittingFromWindowClose = false
@@ -89,6 +101,8 @@ final class AppController: NSObject, ObservableObject {
       Key.keepInMenuBar: true,
       Key.useSystemWideHotkeys: false,
       Key.asksBeforeLeavingOnClose: true,
+      Key.muteMicrophoneOnJoin: false,
+      Key.turnOffCameraOnJoin: false,
     ])
     closeBehavior = CloseBehavior(rawValue: defaults.string(forKey: Key.closeBehavior) ?? "") ?? .keepRunning
     keepInDock = defaults.bool(forKey: Key.keepInDock)
@@ -96,6 +110,8 @@ final class AppController: NSObject, ObservableObject {
     debugLogging = defaults.bool(forKey: DebugLog.enabledKey)
     useSystemWideHotkeys = defaults.bool(forKey: Key.useSystemWideHotkeys)
     asksBeforeLeavingOnClose = defaults.bool(forKey: Key.asksBeforeLeavingOnClose)
+    muteMicrophoneOnJoin = defaults.bool(forKey: Key.muteMicrophoneOnJoin)
+    turnOffCameraOnJoin = defaults.bool(forKey: Key.turnOffCameraOnJoin)
     super.init()
 
     KeyboardShortcuts.onKeyDown(for: .toggleMicrophone) { [weak self] in

@@ -16,6 +16,8 @@ other apps.
 - A menu bar item for starting, joining, and controlling meetings without the main window.
 - Settings for what happens when the main window is closed: quit, or keep running with a Dock
   icon, a menu bar item, or both (see [Settings](#settings)).
+- Settings to mute your microphone and/or turn off your camera before every meeting you join
+  (see [Settings](#settings)).
 - Your Google sign-in is kept between launches.
 - Meet notifications (chat messages, requests to join) appear in Notification Center when
   MacMeet isn't the active app.
@@ -133,6 +135,11 @@ first.
 
   If you turn off the Dock icon, the menu bar item is always kept, so a running MacMeet can't
   become unreachable.
+
+Under **When joining a meeting**, **Mute microphone** and **Turn off camera** (both off by
+default) apply as soon as Meet's pre-join screen appears, before you click Join. Each only acts
+if the corresponding device is currently on, so it always ends up muted/off even if Meet already
+remembered it that way from an earlier call.
 
 Under **Keyboard Shortcuts**, **Use system-wide hotkeys for mute and camera** (off by default)
 makes the two shortcuts below mute your microphone or turn off your camera during a call even
